@@ -1,0 +1,19 @@
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #FAF6EF; /* must match --paper in MallHomepage.jsx exactly */
+}
+
+#root {
+  min-height: 100%;
+  background: #FAF6EF;
+}
+
+body {
+  min-width: 320px;
+}
