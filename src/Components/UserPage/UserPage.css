@@ -1,0 +1,122 @@
+.user-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.user-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.wallet-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+.wallet-label {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.wallet-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.coupon-list, .item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.coupon-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.purchase-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.purchase-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.item-list li {
+  font-size: 13px;
+  color: #4b5563;
+  padding: 2px 0;
+}
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 12px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: #764ba2;
+}
+
+.tab-btn.active {
+  color: #764ba2;
+  border-bottom-color: #764ba2;
+}
+
+.tab-page {
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.purchase-card--clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.purchase-card--clickable:hover {
+  background-color: #f9fafb;
+}
+
+.invoice-loading-text {
+  font-size: 12px;
+  color: #764ba2;
+  margin: 6px 0 0;
+}
