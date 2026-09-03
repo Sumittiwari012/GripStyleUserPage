@@ -17,21 +17,55 @@ export async function fetchCouponUiDesign(couponId, templateId) {
 
 export function applyCouponOverrides(design, coupon) {
   if (!design) return null
+
+  const couponCode = coupon?.couponUniqueCode
+
   const discountLabel =
-    coupon.discountPercentage > 0
+    coupon?.discountPercentage > 0
       ? `${coupon.discountPercentage}%`
-      : coupon.discountAmount > 0
+      : coupon?.discountAmount > 0
       ? `₹${coupon.discountAmount}`
       : design.medallion?.value
 
+  // Use the coupon code itself as the QR value.
+  // This ensures every printed coupon gets its own QR value.
+  const qrValue = couponCode || design.qr?.value
+
   return {
     ...design,
-    medallion: design.medallion && { ...design.medallion, value: discountLabel },
-    qr: design.qr && {
-      ...design.qr,
-      value: coupon.couponUniqueCode
-        ? `${design.qr.value}${design.qr.value.includes('?') ? '&' : '?'}code=${encodeURIComponent(coupon.couponUniqueCode)}`
-        : design.qr.value,
-    },
+
+    // Discount
+    medallion: design.medallion
+      ? {
+          ...design.medallion,
+          value: discountLabel,
+        }
+      : design.medallion,
+
+    // QR
+    qr: design.qr
+      ? {
+          ...design.qr,
+          value: qrValue,
+        }
+      : design.qr,
+
+    // QR text
+    qrLabel: design.qrLabel
+      ? {
+          ...design.qrLabel,
+          line1: couponCode || design.qrLabel.line1,
+        }
+      : design.qrLabel,
+
+    // QR elements, if your template uses QR as an element
+    elements: (design.elements || []).map((el) =>
+      el.type === 'qr'
+        ? {
+            ...el,
+            value: couponCode || el.value,
+          }
+        : el
+    ),
   }
 }

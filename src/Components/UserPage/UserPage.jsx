@@ -6,12 +6,36 @@ import ReturnsPage from './ReturnPage'
 import { getUserDashboard } from '../../api/userApi'
 import './UserPage.css'
 
+const CUSTOMER_STORAGE_KEY = 'customer'
+
+function loadStoredCustomer() {
+  try {
+    const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch (e) {
+    // Corrupt/unreadable value — treat as logged out rather than crashing.
+    return null
+  }
+}
+
 function UserPage() {
-  const [customer, setCustomer] = useState(null) // result from VerifyLoginOtp
+  // Seed from localStorage synchronously so there's no flash of the
+  // login page on refresh for an already-logged-in customer.
+  const [customer, setCustomer] = useState(loadStoredCustomer)
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('invoice') // default to invoice so the last bill is front and center
+
+  const handleLoginSuccess = (result) => {
+    try {
+      localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(result))
+    } catch (e) {
+      // Storage full/unavailable (private browsing, etc.) — login still
+      // works for this session, it just won't survive a refresh.
+    }
+    setCustomer(result)
+  }
 
   useEffect(() => {
     if (!customer) return
@@ -25,7 +49,14 @@ function UserPage() {
         if (!cancelled) setDashboard(data)
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message)
+        if (cancelled) return
+        setError(err.message)
+        // If the stored session is no longer valid server-side (expired
+        // token, deleted account, etc.), a 401/403 should kick the
+        // person back to login rather than showing a permanent error.
+        if (err.status === 401 || err.status === 403) {
+          handleLogout()
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -35,6 +66,7 @@ function UserPage() {
   }, [customer])
 
   const handleLogout = () => {
+    localStorage.removeItem(CUSTOMER_STORAGE_KEY)
     setCustomer(null)
     setDashboard(null)
     setError('')
@@ -42,7 +74,7 @@ function UserPage() {
   }
 
   if (!customer) {
-    return <LoginPage onLoginSuccess={(result) => setCustomer(result)} />
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />
   }
 
   // Purchases already come back most-recent-first from GetUserDashboard
@@ -53,7 +85,7 @@ function UserPage() {
     <div className="user-page">
       <header className="user-page-header">
         <h1>Welcome, Customer</h1>
-        <button onClick={handleLogout}>Log Out</button>
+        <button className="logout-btn" onClick={handleLogout}>Log Out</button>
       </header>
 
       {loading && <p>Loading your account...</p>}
