@@ -2,83 +2,41 @@ import React, { useState, useEffect, useRef } from 'react';
 
 const SLIDES = [
   {
-    tag: 'Men',
-    title: 'Sharp fits for everyday',
-    body: 'New season menswear across Level 1.',
-    img: 'https://picsum.photos/seed/slide-men/1200/750',
+    title: 'Men',
+    img: '/img1.jpeg',
     alt: "Men's clothing rack styled for the new season",
+    containOnMobile: true,
   },
   {
-    tag: 'Women',
-    title: 'Layer up for the new season',
-    body: 'Fresh womenswear drops every week.',
-    img: 'https://picsum.photos/seed/slide-women/1200/750',
+    title: 'Women',
+    img: '/img2.jpeg',
     alt: "Women's fashion display with seasonal layers",
   },
   {
-    tag: 'Kids',
-    title: 'Playful picks for little ones',
-    body: 'Buy 2 get 1 on kidswear all month.',
-    img: 'https://picsum.photos/seed/slide-kids/1200/750',
+    title: 'Kids',
+    img: '/img3.jpeg',
     alt: "Children's clothing rack with bright colours",
   },
   {
-    tag: 'Accessories',
-    title: 'Finish the look',
-    body: 'Jewellery, scarves, and more on Level 2.',
-    img: 'https://picsum.photos/seed/slide-accessories/1200/750',
-    alt: 'Accessories counter with jewellery and scarves',
-  },
-  {
-    tag: 'Hand Bags',
-    title: 'Structured bags, 20% off',
-    body: 'This week only, on Level 2.',
-    img: 'https://picsum.photos/seed/slide-bags/1200/750',
-    alt: 'Handbags displayed on a boutique shelf',
-  },
-  {
-    tag: 'Footwear',
-    title: 'Fresh soles for the season',
-    body: 'New arrivals across every store.',
-    img: 'https://picsum.photos/seed/slide-footwear/1200/750',
-    alt: 'Footwear display with new arrivals',
-  },
-  {
-    tag: 'New arrivals',
-    title: 'This week across the mall',
-    body: 'Every category, refreshed for the new season.',
-    img: 'https://picsum.photos/seed/slide-newarrivals/1200/750',
+    title: 'New arrivals',
+    img: '/img4.jpeg',
     alt: 'Storefront highlighting new seasonal arrivals',
   },
 ];
 
-const PROMOS = [
-  {
-    title: 'Flat 30% off end-of-season fashion',
-    meta: 'Level 1 & 2 · Through Sunday',
-    img: 'https://picsum.photos/seed/promo-main/900/1100',
-    alt: 'Storefront decorated for a seasonal sale',
-    tall: true,
-  },
-  {
-    title: 'Trade in, save more on audio',
-    meta: 'Circuit Bazaar · Level 2',
-    img: 'https://picsum.photos/seed/promo-tech/700/500',
-    alt: 'Electronics store display with new devices',
-  },
-  {
-    title: 'Buy 2 get 1 on kidswear',
-    meta: 'Little Field · Level 1',
-    img: 'https://picsum.photos/seed/promo-kids/700/500',
-    alt: "Children's clothing rack with bright colours",
-  },
-];
+const MALL_LAT = 22.620179774545534;
+const MALL_LNG = 88.39212575400862;
+const MALL_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${MALL_LAT},${MALL_LNG}`;
 
 const NAV_LINKS = [
-  { label: 'Profile', href: '#profile' },
-  { label: 'Offers', href: '#promotions' },
-  { label: 'Visit', href: '#visit' },
+  { label: 'Visit', href: MALL_MAPS_URL },
 ];
+
+const SHOP_ADDRESS = '11/1A, Dumdum Road, Kolkata 700030';
+const SHOP_PHONE = '6290621212';
+const INSTAGRAM_URL = 'https://www.instagram.com/gripstyle.showroom?stkn=MTluYndjOXZrZ2tvZw%3D%3D&utm_source=qr';
+const FACEBOOK_URL = 'https://www.facebook.com/share/1CGVew1jXP/?mibextid=wwXIfr';
+const LOGO_SRC = '/gripstyle-logo.png';
 
 export default function MallHomepage() {
   const [current, setCurrent] = useState(0);
@@ -88,6 +46,8 @@ export default function MallHomepage() {
   const goTo = (i) => {
     setCurrent(((i % SLIDES.length) + SLIDES.length) % SLIDES.length);
   };
+
+ 
 
   useEffect(() => {
     clearInterval(intervalRef.current);
@@ -155,7 +115,7 @@ export default function MallHomepage() {
           display:flex;
           align-items:center;
           justify-content:space-between;
-          padding:16px 20px;
+          padding:10px 20px;
           max-width:var(--maxw);
           margin:0 auto;
         }
@@ -164,7 +124,7 @@ export default function MallHomepage() {
           align-items:center;
         }
         .msq-logo img{
-          height:34px;
+          height:52px;
           width:auto;
           display:block;
         }
@@ -223,6 +183,10 @@ export default function MallHomepage() {
           padding:14px 0;
           border-bottom:1px solid var(--line);
         }
+        .msq-mobile-nav a.msq-logo{
+          padding:0;
+          border-bottom:none;
+        }
         .msq-mall-info{
           margin-top:auto;
           color:var(--ink-soft);
@@ -262,35 +226,11 @@ export default function MallHomepage() {
         .msq-slide.active{opacity:1;}
         .msq-slide img{
           width:100%;height:100%;object-fit:cover;
+          filter:saturate(1.25) contrast(1.05);
         }
-        .msq-slide-caption{
-          position:absolute;
-          left:0;right:0;bottom:0;
-          padding:28px 22px 24px;
-          background:linear-gradient(to top, rgba(28,27,41,0.88), rgba(28,27,41,0));
-          color:#fff;
-        }
-        .msq-slide-tag{
-          display:inline-block;
-          background:var(--red);
-          color:#fff;
-          font-size:0.75rem;
-          font-weight:600;
-          padding:4px 10px;
-          border-radius:999px;
-          margin-bottom:10px;
-        }
-        .msq-slide-caption h2{
-          color:#fff;
-          font-size:1.5rem;
-          line-height:1.15;
-          margin-bottom:6px;
-        }
-        .msq-slide-caption p{
-          margin:0;
-          font-size:0.9rem;
-          color:rgba(255,255,255,0.82);
-          max-width:34ch;
+        @media (max-width:719px){
+          .msq-slide.fit-contain{background:var(--ink);}
+          .msq-slide.fit-contain img{object-fit:contain;}
         }
         .msq-carousel-dots{
           position:absolute;
@@ -325,77 +265,6 @@ export default function MallHomepage() {
           display:flex;align-items:center;justify-content:center;
         }
 
-        /* ============ SECTION HEADS ============ */
-        .msq-section{
-          padding:36px 20px;
-          max-width:var(--maxw);
-          margin:0 auto;
-        }
-        .msq-section-head{
-          display:flex;
-          align-items:flex-end;
-          justify-content:space-between;
-          margin-bottom:18px;
-          gap:12px;
-        }
-        .msq-section-head h2{
-          font-size:1.5rem;
-        }
-        .msq-section-head .msq-sub{
-          color:var(--ink-soft);
-          font-size:0.9rem;
-          margin-top:4px;
-        }
-        .msq-see-all{
-          font-size:0.85rem;
-          font-weight:600;
-          color:var(--teal);
-          white-space:nowrap;
-          padding-bottom:3px;
-          border-bottom:1px solid var(--teal);
-        }
-
-        /* ============ PROMO BENTO ============ */
-        .msq-bento{
-          display:grid;
-          grid-template-columns:1fr;
-          gap:14px;
-        }
-        .msq-promo-card{
-          position:relative;
-          border-radius:var(--radius-lg);
-          overflow:hidden;
-          min-height:200px;
-          background:var(--sand);
-        }
-        .msq-promo-card img{
-          width:100%;height:100%;
-          object-fit:cover;
-          position:absolute;inset:0;
-        }
-        .msq-promo-card .msq-overlay{
-          position:relative;
-          height:100%;
-          display:flex;
-          flex-direction:column;
-          justify-content:flex-end;
-          padding:20px;
-          background:linear-gradient(to top, rgba(28,27,41,0.82) 10%, rgba(28,27,41,0.05) 70%);
-          min-height:200px;
-        }
-        .msq-promo-card h3{
-          color:#fff;
-          font-size:1.15rem;
-          line-height:1.2;
-        }
-        .msq-promo-card .msq-meta{
-          color:rgba(255,255,255,0.78);
-          font-size:0.82rem;
-          margin-top:4px;
-        }
-        .msq-promo-card.tall{min-height:340px;}
-        .msq-promo-card.tall .msq-overlay{min-height:340px;}
-
         /* ============ INFO / FOOTER ============ */
         .msq-info-band{
           background:var(--ink);
@@ -422,11 +291,56 @@ export default function MallHomepage() {
           color:rgba(250,246,239,0.75);
           line-height:1.9;
         }
-        .msq-info-col.brand p{
-          color:rgba(250,246,239,0.6);
-          line-height:1.6;
-          max-width:32ch;
+        .msq-social-row{
+          display:flex;
+          align-items:center;
+          justify-content:flex-start;
+          gap:18px;
+          margin-top:8px;
         }
+
+        .msq-social-btn{
+          width:64px;
+          height:64px;
+          min-width:64px;
+          min-height:64px;
+          flex:0 0 64px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding:0;
+          margin:0;
+          border-radius:50%;
+          overflow:hidden;
+          line-height:0;
+          text-decoration:none;
+          box-sizing:border-box;
+          transition:transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .msq-social-btn img{
+          width:100%;
+          height:100%;
+          display:block;
+          object-fit:cover;
+          object-position:center;
+          border-radius:50%;
+          margin:0;
+          padding:0;
+        }
+
+        .msq-social-btn.instagram img{
+          transform:scale(0.65);
+        }
+
+        .msq-social-btn:hover{
+          transform:scale(1.06);
+          opacity:0.92;
+        }
+        .msq-social-btn.instagram:hover img{
+          transform:scale(0.78) scale(1.06);
+        }
+
         .msq-info-bottom{
           max-width:var(--maxw);
           margin:32px auto 0;
@@ -443,32 +357,27 @@ export default function MallHomepage() {
         /* ============ TABLET / DESKTOP ============ */
         @media (min-width:720px){
           .msq-carousel{aspect-ratio:16/9;}
-          .msq-bento{
-            grid-template-columns:1.3fr 1fr 1fr;
-            grid-template-rows:auto auto;
-          }
-          .msq-bento .msq-promo-card:nth-child(1){grid-row:1 / 3;min-height:100%;}
-          .msq-bento .msq-promo-card:nth-child(1) .msq-overlay{min-height:100%;}
-          .msq-info-grid{grid-template-columns:1.4fr 1fr 1fr 1fr;}
+          .msq-info-grid{grid-template-columns:1.4fr 1fr 1fr;}
         }
 
         @media (min-width:960px){
           .msq-primary-nav{display:flex;}
           .msq-hamburger{display:none;}
-          .msq-slide-caption h2{font-size:2rem;}
-          .msq-section-head h2{font-size:1.9rem;}
           .msq-carousel{aspect-ratio:21/8;}
+          .msq-logo img{height:68px;}
         }
       `}</style>
 
       <header className="msq-header">
         <div className="msq-header-row">
           <a href="#" className="msq-logo">
-            <img src="gripstyle-logo.png" alt="Meridian Square" />
+            <img src={LOGO_SRC} alt="gripstyle logo" />
           </a>
           <nav className="msq-primary-nav">
             {NAV_LINKS.map((l) => (
-              <a key={l.href} href={l.href}>{l.label}</a>
+              <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer">
+                {l.label}
+              </a>
             ))}
           </nav>
           <div className="msq-header-actions">
@@ -485,18 +394,26 @@ export default function MallHomepage() {
       <div className={`msq-mobile-nav${navOpen ? ' open' : ''}`}>
         <div className="msq-mobile-nav-top">
           <a href="#" className="msq-logo">
-            <img src="/logo.png" alt="Meridian Square" />
+            <img src={LOGO_SRC} alt="gripstyle logo" />
           </a>
           <button className="msq-icon-btn" aria-label="Close menu" onClick={() => setNavOpen(false)}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
         {NAV_LINKS.map((l) => (
-          <a key={l.href} href={l.href} onClick={() => setNavOpen(false)}>{l.label}</a>
+          <a
+            key={l.label}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setNavOpen(false)}
+          >
+            {l.label}
+          </a>
         ))}
         <div className="msq-mall-info">
           Open today 10:00 – 22:00<br />
-          14 Riverside Ave, Sector 6
+          {SHOP_ADDRESS}
         </div>
       </div>
 
@@ -505,13 +422,11 @@ export default function MallHomepage() {
           <div className="msq-carousel">
             <div className="msq-carousel-track">
               {SLIDES.map((s, i) => (
-                <div key={s.title} className={`msq-slide${i === current ? ' active' : ''}`}>
+                <div
+                  key={s.title}
+                  className={`msq-slide${i === current ? ' active' : ''}${s.containOnMobile ? ' fit-contain' : ''}`}
+                >
                   <img src={s.img} alt={s.alt} />
-                  <div className="msq-slide-caption">
-                    <span className="msq-slide-tag">{s.tag}</span>
-                    <h2>{s.title}</h2>
-                    <p>{s.body}</p>
-                  </div>
                 </div>
               ))}
             </div>
@@ -537,55 +452,45 @@ export default function MallHomepage() {
         </div>
       </section>
 
-      <section className="msq-section" id="promotions">
-        <div className="msq-section-head">
-          <div>
-            <h2>Live right now</h2>
-            <div className="msq-sub">Offers running across the mall this week</div>
-          </div>
-          <a className="msq-see-all" href="#">See all</a>
-        </div>
-        <div className="msq-bento">
-          {PROMOS.map((p) => (
-            <div key={p.title} className={`msq-promo-card${p.tall ? ' tall' : ''}`}>
-              <img src={p.img} alt={p.alt} />
-              <div className="msq-overlay">
-                <h3>{p.title}</h3>
-                <div className="msq-meta">{p.meta}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <div className="msq-info-band" id="visit">
         <div className="msq-info-grid">
-          <div className="msq-info-col brand">
-            <h4>Meridian Square</h4>
-            <p>Three floors of fashion, food, and everyday errands, open every day of the week.</p>
-          </div>
           <div className="msq-info-col">
-            <h4>Visit</h4>
-            <p>14 Riverside Ave, Sector 6</p>
+            <h4>Shop Location</h4>
+            <p>{SHOP_ADDRESS}</p>
             <p>Open 10:00 – 22:00 daily</p>
-            <a href="#">Get directions</a>
+            <a href={MALL_MAPS_URL} target="_blank" rel="noopener noreferrer">Get directions</a>
           </div>
           <div className="msq-info-col">
-            <h4>Explore</h4>
-            <a href="#">Store directory</a>
-            <a href="#">Dining</a>
-            <a href="#">Current promotions</a>
-            <a href="#">Gift cards</a>
+            <h4>Contact</h4>
+            <a href={`tel:+91${SHOP_PHONE}`}>{SHOP_PHONE}</a>
           </div>
           <div className="msq-info-col">
-            <h4>Support</h4>
-            <a href="#">Customer service</a>
-            <a href="#">Parking</a>
-            <a href="#">Lost &amp; found</a>
+            <h4>Follow Us</h4>
+            <div className="msq-social-row">
+              <a
+                href={FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="msq-social-btn facebook"
+              >
+                <img src="/fb.webp" alt="Facebook" />
+              </a>
+
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="msq-social-btn instagram"
+              >
+                <img src="/insta.png" alt="Instagram" />
+              </a>
+            </div>
           </div>
         </div>
         <div className="msq-info-bottom">
-          <span>© 2026 Meridian Square</span>
+          <span>© 2026</span>
           <span>Privacy · Terms</span>
         </div>
       </div>
