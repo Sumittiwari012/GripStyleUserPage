@@ -34,8 +34,10 @@ const NAV_LINKS = [
 
 const SHOP_ADDRESS = '11/1A, Dumdum Road, Kolkata 700030';
 const SHOP_PHONE = '6290621212';
+const SHOP_EMAIL = 'info@gripstyle.in';
 const INSTAGRAM_URL = 'https://www.instagram.com/gripstyle.showroom?stkn=MTluYndjOXZrZ2tvZw%3D%3D&utm_source=qr';
 const FACEBOOK_URL = 'https://www.facebook.com/share/1CGVew1jXP/?mibextid=wwXIfr';
+const GOOGLE_URL = 'https://share.google/FWkmaWsOX7sGLnUij';
 const LOGO_SRC = '/gripstyle-logo.png';
 
 export default function MallHomepage() {
@@ -123,6 +125,9 @@ export default function MallHomepage() {
           display:flex;
           align-items:center;
         }
+          .msq-social-btn.google img{
+  transform:scale(0.6);
+}
         .msq-logo img{
           height:52px;
           width:auto;
@@ -463,6 +468,9 @@ export default function MallHomepage() {
           <div className="msq-info-col">
             <h4>Contact</h4>
             <a href={`tel:+91${SHOP_PHONE}`}>{SHOP_PHONE}</a>
+            <a href={SHOP_EMAIL} target="_blank" rel="noopener noreferrer">
+              {SHOP_EMAIL}
+            </a>
           </div>
           <div className="msq-info-col">
             <h4>Follow Us</h4>
@@ -485,6 +493,15 @@ export default function MallHomepage() {
                 className="msq-social-btn instagram"
               >
                 <img src="/insta.png" alt="Instagram" />
+                </a>
+              <a
+                href={GOOGLE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Google"
+                className="msq-social-btn google"
+              >
+                <img src="/google.webp" alt="Google" />
               </a>
             </div>
           </div>
