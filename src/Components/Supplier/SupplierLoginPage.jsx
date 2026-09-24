@@ -6,10 +6,97 @@ import {
   ArrowLeft,
   Loader2,
 } from "lucide-react";
+import SupplierDashboard from "./SupplierDashboard";
 
-const OTP_LENGTH = 6;
+// Must match the length of the OTP the backend generates.
+// SupplierController: Random.Shared.Next(1000, 10000) -> 4 digits.
+// If you change the backend to 6 digits, set this to 6.
+const OTP_LENGTH = 4;
 const RESEND_COOLDOWN_SECONDS = 30;
 const SESSION_STORAGE_KEY = "gripstyle_supplier_session";
+
+// Defaults to the production API. To point at another backend (e.g. local dev),
+// set VITE_API_BASE_URL in .env and restart the dev server.
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ?? "https://gripstyleapi.runasp.net"
+).replace(/\/$/, "");
+
+/* ------------------------------------------------------------------ */
+/* API helpers                                                         */
+/* ------------------------------------------------------------------ */
+
+// The backend returns errors in two shapes: plain text (SendLoginOtp) and
+// JSON { message } (VerifyLoginOtp). ASP.NET validation errors come back as
+// ProblemDetails with a "title". This reads whichever one arrives.
+async function readErrorMessage(res) {
+  let text = "";
+  try {
+    text = await res.text();
+  } catch {
+    // ignore
+  }
+  if (text) {
+    try {
+      const data = JSON.parse(text);
+      if (data && typeof data === "object") {
+        return data.message || data.title || `Something went wrong (${res.status}).`;
+      }
+    } catch {
+      // Not JSON - the body is the plain-text message itself.
+    }
+    return text;
+  }
+  return `Something went wrong (${res.status}). Please try again.`;
+}
+
+async function postJson(path, body) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/Supplier/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  }
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res));
+  }
+  return res.json();
+}
+
+// POST /api/Supplier/SendLoginOtp
+async function sendLoginOtp(phoneNumber) {
+  return postJson("SendLoginOtp", { phoneNumber });
+}
+
+// POST /api/Supplier/VerifyLoginOtp
+async function verifyLoginOtp(phoneNumber, otp) {
+  const data = await postJson("VerifyLoginOtp", {
+    phoneNumber,
+    otpVal: Number(otp),
+  });
+  if (!data.verified) {
+    throw new Error("Verification failed. Please try again.");
+  }
+  return {
+    customerId: data.customerId,
+    customerName: data.customerName,
+    mobileNumber: data.mobileNumber,
+  };
+}
+
+// Keeps only digits and uses the last 10, so "+91 98765 43210" and
+// "98765 43210" both become "9876543210". The backend matches MobileNumber
+// exactly, so this assumes numbers are stored as 10 digits in the database.
+function normalizePhone(value) {
+  return value.replace(/\D/g, "").slice(-10);
+}
+
+/* ------------------------------------------------------------------ */
+/* Session storage                                                     */
+/* ------------------------------------------------------------------ */
 
 function loadStoredSession() {
   try {
@@ -47,43 +134,29 @@ export function clearSupplierSession() {
  *   2) Enter the OTP -> verified, then onLoginSuccess hands off to your app
  *      (e.g. navigate to the supplier dashboard route).
  *
- * Wire these up to your real API:
+ * By default this talks to SupplierController:
+ *   POST /api/Supplier/SendLoginOtp   { phoneNumber }
+ *   POST /api/Supplier/VerifyLoginOtp { phoneNumber, otpVal }
+ *
+ * The props below are optional overrides (e.g. for tests):
  *
  *   onRequestOtp(mobileNumber) -> Promise
- *     Look up the supplier by mobile number and trigger the WhatsApp OTP send.
- *     Reject with an Error (e.g. "No supplier found for this number.") if
- *     there's no match - the message is shown on the phone-number step.
- *
  *   onVerifyOtp(mobileNumber, otp) -> Promise<supplierSession>
- *     Validate the code. Reject with an Error for a wrong/expired code.
- *     Resolve with whatever session/supplier data your app needs.
  *
  *   onLoginSuccess(supplierSession)
- *     Called once OTP verification succeeds. Typically navigates to the
- *     supplier's own page (e.g. navigate("/supplier/dashboard")).
+ *     Called once OTP verification succeeds, with
+ *     { customerId, customerName, mobileNumber }.
+ *     Typically navigates to the supplier's own page.
  */
-export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSuccess }) {
+function SupplierLoginForm({ onRequestOtp, onVerifyOtp, onLoginSuccess }) {
   const [step, setStep] = useState("phone"); // "phone" | "otp"
   const [mobileNumber, setMobileNumber] = useState("");
   const [otpDigits, setOtpDigits] = useState(Array(OTP_LENGTH).fill(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
-  const [checkingSession, setCheckingSession] = useState(true);
 
   const otpRefs = useRef([]);
-
-  // Runs once on mount: if a session was saved from a previous visit, skip
-  // the login form entirely and hand straight off to onLoginSuccess so the
-  // supplier stays signed in even after closing the tab / browser.
-  useEffect(() => {
-    const stored = loadStoredSession();
-    if (stored) {
-      onLoginSuccess?.(stored);
-    }
-    setCheckingSession(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -94,19 +167,15 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
   const requestOtp = async (mode) => {
     setError("");
 
-    const digitsOnly = mobileNumber.replace(/\D/g, "");
-    if (digitsOnly.length < 10) {
+    const phone = normalizePhone(mobileNumber);
+    if (phone.length < 10) {
       setError("Enter a valid 10-digit mobile number.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      if (onRequestOtp) {
-        await onRequestOtp(digitsOnly);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 900));
-      }
+      await (onRequestOtp ?? sendLoginOtp)(phone);
       setCooldown(RESEND_COOLDOWN_SECONDS);
       if (mode === "initial") {
         setOtpDigits(Array(OTP_LENGTH).fill(""));
@@ -161,16 +230,14 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
 
     const code = otpDigits.join("");
     if (code.length < OTP_LENGTH) {
-      setError("Enter the full 6-digit code.");
+      setError(`Enter the full ${OTP_LENGTH}-digit code.`);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const digitsOnly = mobileNumber.replace(/\D/g, "");
-      const session = onVerifyOtp
-        ? await onVerifyOtp(digitsOnly, code)
-        : await new Promise((resolve) => setTimeout(() => resolve({ mobileNumber: digitsOnly }), 900));
+      const phone = normalizePhone(mobileNumber);
+      const session = await (onVerifyOtp ?? verifyLoginOtp)(phone, code);
       saveStoredSession(session);
       onLoginSuccess?.(session);
     } catch (err) {
@@ -185,13 +252,6 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
     setError("");
     setCooldown(0);
   };
-
-  if (checkingSession) {
-    // Synchronous localStorage read, so this resolves almost instantly -
-    // this just avoids a one-frame flash of the login form for a supplier
-    // who's already signed in.
-    return <div className="min-h-screen w-full bg-[#F3EFE6]" />;
-  }
 
   return (
     <div className="min-h-screen w-full bg-[#F3EFE6] flex items-stretch">
@@ -294,8 +354,6 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
                   )}
                 </button>
               </form>
-
-              
             </>
           ) : (
             <>
@@ -316,7 +374,7 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
                 Enter the code
               </h1>
               <p className="mt-2 text-sm text-[#5B6472]">
-                We've sent a 6-digit code via WhatsApp to{" "}
+                We've sent a {OTP_LENGTH}-digit code via WhatsApp to{" "}
                 <span className="font-medium text-[#1B2430]">
                   {mobileNumber}
                 </span>
@@ -335,6 +393,7 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
                         ref={(el) => (otpRefs.current[i] = el)}
                         type="text"
                         inputMode="numeric"
+                        autoComplete={i === 0 ? "one-time-code" : "off"}
                         maxLength={1}
                         value={digit}
                         onChange={(e) => handleOtpChange(i, e.target.value)}
@@ -394,5 +453,48 @@ export default function SupplierLoginPage({ onRequestOtp, onVerifyOtp, onLoginSu
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Entry point for the supplier area. Everything stays on one URL: the login
+ * form is shown until the supplier is verified, then it is swapped for the
+ * dashboard in place. A saved session skips straight to the dashboard, so
+ * the supplier stays signed in after closing the tab / browser.
+ *
+ * Optional props: onRequestOtp / onVerifyOtp (API overrides),
+ * onLoginSuccess(session) and onLogout() (notifications for your app).
+ */
+export default function SupplierLoginPage({
+  onRequestOtp,
+  onVerifyOtp,
+  onLoginSuccess,
+  onLogout,
+}) {
+  // Lazy initialiser reads storage synchronously, so a returning supplier
+  // never sees a flash of the login form.
+  const [session, setSession] = useState(loadStoredSession);
+
+  const handleLoginSuccess = (newSession) => {
+    setSession(newSession);
+    onLoginSuccess?.(newSession);
+  };
+
+  const handleLogout = () => {
+    clearSupplierSession();
+    setSession(null);
+    onLogout?.();
+  };
+
+  if (session) {
+    return <SupplierDashboard session={session} onLogout={handleLogout} />;
+  }
+
+  return (
+    <SupplierLoginForm
+      onRequestOtp={onRequestOtp}
+      onVerifyOtp={onVerifyOtp}
+      onLoginSuccess={handleLoginSuccess}
+    />
   );
 }
