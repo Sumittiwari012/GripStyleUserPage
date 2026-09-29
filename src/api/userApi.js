@@ -2,7 +2,7 @@
 
 // Adjust this to match your actual backend base URL (and consider moving
 // it into a .env file as VITE_API_BASE_URL for dev/prod switching).
-const API_BASE_URL = 'http://gripstyleapi.runasp.net'
+const API_BASE_URL = 'https://gripstyleapi.runasp.net'
 
 async function handleResponse(response) {
   const data = await response.json().catch(() => null)

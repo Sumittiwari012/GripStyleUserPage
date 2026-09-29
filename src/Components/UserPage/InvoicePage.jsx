@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import InvoiceBill from './invoiceBill' // adjust path to your actual InvoiceBill location
 
-const API_BASE_URL = 'http://gripstyleapi.runasp.net'
+const API_BASE_URL = 'https://gripstyleapi.runasp.net'
 
 function InvoicePage({ purchases, autoOpenInvoiceNumber }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null)
