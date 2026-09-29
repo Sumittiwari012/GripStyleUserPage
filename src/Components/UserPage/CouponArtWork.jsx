@@ -1,7 +1,7 @@
 import _ from 'lodash'
 import { baseDesign } from '../TemplateLibrary/lib/design'
 
-const API_BASE = 'https://dummypossetup.runasp.net'
+const API_BASE = 'http://gripstyleapi.runasp.net'
 
 export async function fetchCouponUiDesign(couponId, templateId) {
   const res = await fetch(
