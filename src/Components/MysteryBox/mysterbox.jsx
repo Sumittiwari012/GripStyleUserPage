@@ -64,7 +64,8 @@ const GUIDE = {
 };
 const STEP_INDEX = { idle: 0, verifying: 1, ready: 2, opening: 3, revealed: 3 };
 const STEP_LABELS = ["Number", "Check", "Open", "Reward"];
-const CONFETTI_COLORS = ["#ffc857", "#ff5c4d", "#f5eee3", "#5be3b0", "#8f86ff"];
+const REWARD_LINK = "https://gripstyle.in/user";
+const CONFETTI_COLORS =["#ffc857", "#ff5c4d", "#f5eee3", "#5be3b0", "#8f86ff"];
 
 const digitsOnly = (v) => v.replace(/\D/g, "").slice(0, 10);
 const formatPhone = (d) => (d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5)}` : d);
@@ -72,7 +73,7 @@ const formatPhone = (d) => (d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5)}` : d)
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-export default function MysteryBox({ api = dummyApi, testMode = true }) {
+export default function MysteryBox({ api = dummyApi }) {
   const [phase, setPhase] = useState("idle");
   const [phone, setPhone] = useState(""); // raw digits
   const [error, setError] = useState("");
@@ -226,7 +227,7 @@ export default function MysteryBox({ api = dummyApi, testMode = true }) {
       await sleep(wait);
       setReward(r);
       setPhase("revealed");
-      later(() => burst(true), reduce ? 0 : 450);
+      later(() => burst(true), reduce ? 0 : 500);
     } catch {
       setPhase("ready");
       fail("Could not open the box. Tap it again.");
@@ -257,17 +258,6 @@ export default function MysteryBox({ api = dummyApi, testMode = true }) {
     }
   };
 
-  const onReset = () => {
-    setPhone("");
-    setError("");
-    setReward(null);
-    setPhase("idle");
-    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
-    later(() => {
-      if (phoneRef.current) phoneRef.current.focus({ preventScroll: true });
-    }, 400);
-  };
-
   /* ---------- Derived ---------- */
   const idx = STEP_INDEX[phase];
   const fillPct = phase === "revealed" ? 75 : idx * 25;
@@ -280,7 +270,6 @@ export default function MysteryBox({ api = dummyApi, testMode = true }) {
       <div className="wrap">
         <header>
           <img className="logo" src="/gripstyle-logo.png" alt="Gripstyle" />
-          
           <h1>Open your mystery box</h1>
           <p className="sub">Every number gets one box. Enter yours and see what is inside.</p>
         </header>
@@ -305,27 +294,59 @@ export default function MysteryBox({ api = dummyApi, testMode = true }) {
           <div className="stage">
             <div className="rays" />
             <div className="halo" />
-            <button
-              ref={boxRef}
-              className="box"
-              type="button"
-              aria-label="Mystery box"
-              disabled={phase !== "ready"}
-              onClick={onOpen}
-            >
-              <span className="shadow" />
-              <span className="body">
-                <span className="ribbon" />
-                <span className="qmark">
-                  <b>?</b>
+
+            {phase === "revealed" && reward && (
+              <div className="ticket-slot">
+                <div className="ticket">
+                  <div className="t-top">
+                    <span className="t-kicker">Mystery box reward</span>
+                    <span className="t-value">{reward.value}</span>
+                    <span className="t-name">{reward.name}</span>
+                  </div>
+                  <div className="t-bottom">
+                    <div className="codebox">
+                      <div className="code" ref={codeRef}>
+                        {reward.code}
+                      </div>
+                      <button className="copy" type="button" onClick={onCopy}>
+                        {copyLabel}
+                      </button>
+                    </div>
+                    <div className="meta">
+                      <span>{reward.min}</span>
+                      <span>
+                        Valid till{" "}
+                        {reward.expires.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="box-holder">
+              <button
+                ref={boxRef}
+                className="box"
+                type="button"
+                aria-label="Mystery box"
+                disabled={phase !== "ready"}
+                onClick={onOpen}
+              >
+                <span className="shadow" />
+                <span className="body">
+                  <span className="ribbon" />
+                  <span className="qmark">
+                    <b>?</b>
+                  </span>
                 </span>
-              </span>
-              <span className="inside-glow" />
-              <span className="lid">
-                <span className="ribbon" />
-                <span className="bow" />
-              </span>
-            </button>
+                <span className="inside-glow" />
+                <span className="lid">
+                  <span className="ribbon" />
+                  <span className="bow" />
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -368,34 +389,9 @@ export default function MysteryBox({ api = dummyApi, testMode = true }) {
               <small>Matched to +91 {masked}</small>
             </div>
 
-            <div className="ticket">
-              <div className="t-top">
-                <span className="t-kicker">Mystery box reward</span>
-                <span className="t-value">{reward.value}</span>
-                <span className="t-name">{reward.name}</span>
-              </div>
-              <div className="t-bottom">
-                <div className="codebox">
-                  <div className="code" ref={codeRef}>
-                    {reward.code}
-                  </div>
-                  <button className="copy" type="button" onClick={onCopy}>
-                    {copyLabel}
-                  </button>
-                </div>
-                <div className="meta">
-                  <span>{reward.min}</span>
-                  <span>
-                    Valid till{" "}
-                    {reward.expires.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <button className="btn ghost stagger s2" type="button" onClick={onReset}>
-              Try another number
-            </button>
+            <a className="btn stagger s2" href={REWARD_LINK}>
+              Login To Your Account
+            </a>
           </section>
         )}
       </div>
@@ -484,12 +480,29 @@ const CSS = String.raw`
 /* Stage */
 .mb-root .stage-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.7s cubic-bezier(0.65, 0, 0.2, 1), opacity 0.5s; }
 .mb-root .stage-wrap > .stage { min-height: 0; }
-.mb-root[data-phase="revealed"] .stage-wrap { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
-.mb-root .stage { position: relative; height: 290px; display: grid; place-items: center; overflow: visible; }
-.mb-root[data-phase="revealed"] .stage { overflow: hidden; }
+.mb-root .stage {
+  --box-top: 40px;
+  --rev-h: 420px;
+  position: relative; height: 270px; overflow: visible;
+  transition: height 0.9s cubic-bezier(0.6, 0, 0.2, 1) 0.15s;
+}
+.mb-root[data-phase="revealed"] .stage { height: var(--rev-h); }
+
+/* The box sits in a holder. On reveal the holder slides to the bottom of the
+   taller stage and shrinks a little, so the coupon has room above it. */
+.mb-root .box-holder {
+  position: absolute; left: 50%; top: var(--box-top); width: 170px; height: 190px; margin-left: -85px; z-index: 6;
+  transform-origin: 50% 100%;
+  transition: top 0.9s cubic-bezier(0.6, 0, 0.2, 1) 0.15s, transform 0.9s cubic-bezier(0.6, 0, 0.2, 1) 0.15s;
+}
+.mb-root[data-phase="revealed"] .box-holder { top: calc(var(--rev-h) - 204px); transform: scale(0.72); }
+
+/* The slot is as tall as the final stage, so the coupon keeps its place while the stage grows. */
+.mb-root .ticket-slot { position: absolute; left: 0; right: 0; top: 0; height: var(--rev-h); z-index: 4; pointer-events: none; }
+.mb-root .ticket-slot .ticket { position: absolute; left: 0; right: 0; bottom: 93px; margin: 0 auto; width: min(340px, 100%); pointer-events: auto; }
 
 .mb-root .rays {
-  position: absolute; width: 520px; height: 520px; max-width: 150vw; border-radius: 50%;
+  position: absolute; width: 520px; height: 520px; left: 50%; top: calc(var(--box-top) + 95px); margin: -260px 0 0 -260px; border-radius: 50%;
   background: repeating-conic-gradient(from 0deg, rgba(255, 200, 87, 0.34) 0 7deg, transparent 7deg 20deg);
   -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 68%);
   mask-image: radial-gradient(circle, #000 0%, transparent 68%);
@@ -497,17 +510,20 @@ const CSS = String.raw`
 }
 .mb-root[data-phase="opening"] .rays, .mb-root[data-phase="ready"] .rays { opacity: 0.55; transform: scale(1); transition: opacity 0.8s, transform 0.9s; animation: mb-spin 14s linear infinite; }
 .mb-root[data-phase="opening"] .rays { opacity: 1; }
+.mb-root[data-phase="revealed"] .rays { opacity: 0.3; transform: scale(1); top: calc(var(--rev-h) - 60px); transition: opacity 1.2s, top 0.9s cubic-bezier(0.6, 0, 0.2, 1) 0.15s; animation: mb-spin 20s linear infinite; }
+.mb-root[data-phase="revealed"] .halo { top: calc(var(--rev-h) - 60px); }
 @keyframes mb-spin { to { transform: rotate(360deg) scale(1); } }
 
 .mb-root .halo {
-  position: absolute; width: 260px; height: 260px; border-radius: 50%;
+  position: absolute; width: 260px; height: 260px; left: 50%; top: calc(var(--box-top) + 95px); margin: -130px 0 0 -130px; border-radius: 50%;
+  transition: top 0.9s cubic-bezier(0.6, 0, 0.2, 1) 0.15s;
   background: radial-gradient(circle, rgba(255, 92, 77, 0.4), transparent 65%); filter: blur(6px);
   animation: mb-breathe 3.4s ease-in-out infinite;
 }
 @keyframes mb-breathe { 50% { transform: scale(1.12); opacity: 0.8; } }
 
 .mb-root .box {
-  all: unset; position: relative; width: 170px; height: 190px; cursor: default; z-index: 2; display: block;
+  all: unset; position: relative; width: 170px; height: 190px; cursor: default; display: block;
   animation: mb-floaty 3.6s ease-in-out infinite; -webkit-tap-highlight-color: transparent;
 }
 .mb-root .box:focus-visible { outline: 3px solid var(--gold); outline-offset: 10px; border-radius: 12px; }
@@ -568,15 +584,23 @@ const CSS = String.raw`
 @keyframes mb-tease { 0%, 55%, 100% { transform: translateY(0); } 25% { transform: translateY(-8px) rotate(-3deg); } }
 .mb-root[data-phase="opening"] .box { animation: mb-pre 0.6s ease-in; }
 @keyframes mb-pre { 0% { transform: scale(1); } 60% { transform: scale(1.12, 0.92); } 100% { transform: scale(1); } }
-.mb-root[data-phase="opening"] .lid { animation: mb-lidoff 1.1s 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; }
+/* The lid pops up, then drops to rest beside the box. It never disappears. */
+.mb-root[data-phase="opening"] .lid { animation: mb-lidoff 1.1s 0.5s cubic-bezier(0.3, 0.7, 0.3, 1) forwards; }
+.mb-root[data-phase="revealed"] .lid { animation: none; transform: translate(-98px, 128px) rotate(-10deg) scale(0.55); transition: none; }
 @keyframes mb-lidoff {
-  0% { transform: none; opacity: 1; }
-  60% { transform: translate(-60px, -120px) rotate(-38deg); opacity: 1; }
-  100% { transform: translate(-90px, -60px) rotate(-60deg); opacity: 0; }
+  0% { transform: none; }
+  35% { transform: translate(-30px, -80px) rotate(-14deg) scale(0.9); }
+  100% { transform: translate(-98px, 128px) rotate(-10deg) scale(0.55); }
 }
 .mb-root[data-phase="opening"] .inside-glow { animation: mb-glow 1.2s 0.5s ease-out forwards; }
-@keyframes mb-glow { to { opacity: 1; transform: translateY(-34px) scaleX(1.5); } }
+@keyframes mb-glow { to { opacity: 0.9; transform: translateY(-30px) scaleX(1.5); } }
+.mb-root[data-phase="revealed"] .inside-glow { opacity: 0.9; transform: translateY(-30px) scaleX(1.5); animation: mb-glowpulse 2.4s ease-in-out infinite; }
+@keyframes mb-glowpulse {
+  0%, 100% { opacity: 0.55; transform: translateY(-30px) scaleX(1.5); }
+  50% { opacity: 0.95; transform: translateY(-34px) scaleX(1.7); }
+}
 .mb-root[data-phase="opening"] .qmark { animation: mb-qout 0.4s 0.4s forwards; }
+.mb-root[data-phase="revealed"] .qmark { opacity: 0; }
 @keyframes mb-qout { to { opacity: 0; transform: scale(0.4); } }
 
 /* Guide */
@@ -620,6 +644,7 @@ const CSS = String.raw`
   all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 15px 20px; border-radius: 14px; font-weight: 700; font-size: 16px;
   background: var(--gold); color: var(--ink); box-shadow: 0 5px 0 #c99a2c; transition: transform 0.12s, box-shadow 0.12s, opacity 0.2s;
 }
+.mb-root a.btn { display: block; text-decoration: none; }
 .mb-root .btn:hover { transform: translateY(-1px); }
 .mb-root .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #c99a2c; }
 .mb-root .btn:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
@@ -628,20 +653,27 @@ const CSS = String.raw`
 .mb-root .fine { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
 /* Coupon */
-.mb-root .result { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
+.mb-root .result { position: relative; display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
 .mb-root .ticket {
   --notch: 62%;
-  position: relative; border-radius: 20px; color: var(--ink); overflow: hidden;
+  position: relative; z-index: 5; border-radius: 20px; color: var(--ink); overflow: hidden;
   background: linear-gradient(150deg, #ffe08a, var(--gold) 55%, #f4ab2f);
   box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4);
   -webkit-mask: radial-gradient(circle 14px at 0 var(--notch), transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 14px at 100% var(--notch), transparent 98%, #000) right / 51% 100% no-repeat;
   mask: radial-gradient(circle 14px at 0 var(--notch), transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 14px at 100% var(--notch), transparent 98%, #000) right / 51% 100% no-repeat;
-  animation: mb-ticket 0.9s cubic-bezier(0.2, 1.1, 0.3, 1) both;
+  animation: mb-fly 1.6s both;
 }
-@keyframes mb-ticket { from { opacity: 0; transform: translateY(60px) scale(0.85) rotate(-3deg); } to { opacity: 1; transform: none; } }
+/* Starts small at the box mouth (--fx/--fy are set in JS), rises out, then drops into place. */
+@keyframes mb-fly {
+  0% { opacity: 0; transform: translateY(-90px) scale(0.16) rotate(-8deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  14% { opacity: 1; }
+  42% { opacity: 1; transform: translateY(-135px) scale(0.6) rotate(5deg); animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); }
+  78% { transform: translateY(10px) scale(1.04) rotate(-1.5deg); animation-timing-function: ease-out; }
+  100% { opacity: 1; transform: none; }
+}
 .mb-root .ticket::after {
   content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
-  transform: translateX(-120%); animation: mb-shine 1.4s 0.9s ease-out forwards; pointer-events: none;
+  transform: translateX(-120%); animation: mb-shine 1.4s 1.3s ease-out forwards; pointer-events: none;
 }
 @keyframes mb-shine { to { transform: translateX(120%); } }
 .mb-root .t-top { padding: 24px 22px 20px; display: flex; flex-direction: column; gap: 4px; border-bottom: 2px dashed rgba(20, 17, 43, 0.35); }
@@ -659,9 +691,9 @@ const CSS = String.raw`
 .mb-root .meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; font-weight: 500; }
 .mb-root .meta span { opacity: 0.85; }
 .mb-root .stagger { animation: mb-rise 0.6s both; }
-.mb-root .s2 { animation-delay: 1.25s; }
+.mb-root .s2 { animation-delay: 1.5s; }
 @keyframes mb-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.mb-root .winline { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 22px; animation: mb-rise 0.6s 0.2s both; }
+.mb-root .winline { text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 22px; animation: mb-rise 0.6s 1.1s both; }
 .mb-root .winline small { display: block; font-family: var(--font-body); font-weight: 400; font-size: 14px; color: var(--muted); margin-top: 2px; }
 
 .mb-root .mb-fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
@@ -670,5 +702,6 @@ const CSS = String.raw`
   .mb-root *, .mb-root *::before, .mb-root *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; animation-delay: 0s !important; }
   .mb-root .rays { display: none; }
 }
-@media (max-width: 380px) { .mb-root .stage { height: 260px; } .mb-root .panel { padding: 18px; } }
+@media (max-width: 380px) { .mb-root .stage { --box-top: 30px; height: 250px; }
+  .mb-root[data-phase="revealed"] .stage { height: var(--rev-h); } .mb-root .panel { padding: 18px; } }
 `;
