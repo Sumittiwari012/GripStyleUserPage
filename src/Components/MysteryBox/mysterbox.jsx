@@ -8,6 +8,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const API_BASE = "https://gripstyleapi.runasp.net"; // or your env variable
 
+// Indian digit grouping: 1000 -> "1,000", 100000 -> "1,00,000"
+const inr = (n) => Number(n).toLocaleString("en-IN");
+
 async function post(path, body) {
   const res = await fetch(`${API_BASE}/api/MysteryBox/${path}`, {
     method: "POST",
@@ -37,8 +40,8 @@ const mysteryApi = {
     return {
       code: d.couponUniqueCode,
       amount: d.discountAmount, // picks the template image (flat coupons only)
-      value: isFlat ? `₹${d.discountAmount} OFF` : `${d.discountPercentage}% OFF`,
-      min: `Min. order ₹${d.minSpendAmount}`,
+      value: isFlat ? `₹${inr(d.discountAmount)} OFF` : `${d.discountPercentage}% OFF`,
+      min: `Min. order ₹${inr(d.minSpendAmount)}`,
       name: d.couponName,
       assignmentId: d.couponAssignmentId,
       customerName: d.customerName,
@@ -48,8 +51,10 @@ const mysteryApi = {
   },
 };
 
-// Five template images in public/: coupon_Rs50.png, coupon_Rs100.png, coupon_Rs200.png,
-// coupon_Rs300.png, coupon_Rs500.png
+// Six template images in public/: coupon_Rs50.png, coupon_Rs100.png, coupon_Rs200.png,
+// coupon_Rs300.png, coupon_Rs500.png, coupon_Rs1000.png
+// Amounts not listed here skip the image request and show the text ticket instead.
+const TEMPLATE_AMOUNTS = [50, 100, 200, 300, 500, 1000];
 const couponImageUrl = (amount) => `/coupon_Rs${amount}.png`;
 const isSorry = (ex) => ex.code === "ALREADY_CLAIMED" || ex.code === "SOLD_OUT";
 
@@ -329,7 +334,7 @@ export default function MysteryBox({ api = mysteryApi }) {
 
             {phase === "revealed" && reward && (
               <div className="ticket-slot">
-                {imgFailed || !reward.amount ? (
+                {imgFailed || !TEMPLATE_AMOUNTS.includes(reward.amount) ? (
                   <div className="ticket-img ticket-fallback">
                     <b>{reward.value}</b>
                     <span>{reward.min}</span>
