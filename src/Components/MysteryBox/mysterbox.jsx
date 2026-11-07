@@ -6,7 +6,7 @@ import QRCode from "qrcode"; // npm i qrcode
 /* ------------------------------------------------------------------ */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const API_BASE = "https://YOUR-BACKEND-HOST"; // or your env variable
+const API_BASE = "https://gripstyleapi.runasp.net"; // or your env variable
 
 async function post(path, body) {
   const res = await fetch(`${API_BASE}/api/MysteryBox/${path}`, {
