@@ -20,7 +20,7 @@ function App() {
     <Route path="/terms" element={<TermsOfService />} />
     <Route path="/data-deletion" element={<DataDeletion />} />
     <Route path="/UPIPAY" element={<UpiPayLinkPage/>} />
-    <Route path="/box" element={<MysteryBoxPage />} />
+    <Route path="/mysterybox" element={<MysteryBoxPage />} />
     
       </Routes>
     </BrowserRouter>
