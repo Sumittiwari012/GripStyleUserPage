@@ -6,7 +6,7 @@ import QRCode from "qrcode"; // npm i qrcode
 /* ------------------------------------------------------------------ */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const API_BASE = "https://gripstyleapi.runasp.net"; // or your env variable
+const API_BASE = "https://YOUR-BACKEND-HOST"; // or your env variable
 
 async function post(path, body) {
   const res = await fetch(`${API_BASE}/api/MysteryBox/${path}`, {
@@ -48,8 +48,9 @@ const mysteryApi = {
   },
 };
 
-// Five template images in public/coupons: 50.png, 100.png, 200.png, 300.png, 500.png
-const couponImageUrl = (amount) => `/coupons/${amount}.png`;
+// Five template images in public/: coupon_Rs50.png, coupon_Rs100.png, coupon_Rs200.png,
+// coupon_Rs300.png, coupon_Rs500.png
+const couponImageUrl = (amount) => `/coupon_Rs${amount}.png`;
 const isSorry = (ex) => ex.code === "ALREADY_CLAIMED" || ex.code === "SOLD_OUT";
 
 /* ------------------------------------------------------------------ */
