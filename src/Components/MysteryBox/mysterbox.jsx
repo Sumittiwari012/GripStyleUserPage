@@ -1,71 +1,74 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import QRCode from "qrcode"; // npm i qrcode
 
 /* ------------------------------------------------------------------ */
-/*  Dummy API. Replace the bodies with real fetch() calls later, or    */
-/*  pass your own object as the `api` prop of <MysteryBox />.          */
+/*  API                                                                */
 /* ------------------------------------------------------------------ */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const REWARDS = [
-  { value: "₹100 OFF", name: "Flat discount on your next order", min: "Min. order ₹499", prefix: "SAVE" },
-  { value: "15% OFF", name: "Up to ₹200 off, any category", min: "Min. order ₹699", prefix: "BOX15" },
-  { value: "FREE DELIVERY", name: "No delivery fee for 30 days", min: "No minimum order", prefix: "SHIPIT" },
-  { value: "₹250 OFF", name: "Big saver on orders above ₹1,499", min: "Min. order ₹1,499", prefix: "BIG" },
-  { value: "BUY 1 GET 1", name: "On selected items, lowest price free", min: "Selected items only", prefix: "BOGO" },
-];
+const API_BASE = "https://gripstyleapi.runasp.net"; // or your env variable
 
-const hash = (s) => {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+async function post(path, body) {
+  const res = await fetch(`${API_BASE}/api/MysteryBox/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data.message || "Something went wrong. Try again.");
+    e.code = data.code;
+    throw e;
   }
-  return h >>> 0;
+  return data;
+}
+
+const mysteryApi = {
+  sendOtp: (num) => post("SendOtp", { phoneNumber: num }),
+  async verifyOtp(num, otp) {
+    const d = await post("VerifyOtp", { phoneNumber: num, otpVal: Number(otp) });
+    // The unique code comes from the backend only; the QR is drawn from that same code.
+    const qr = await QRCode.toDataURL(d.couponUniqueCode, {
+      margin: 0,
+      width: 300,
+      color: { dark: "#14112bff", light: "#00000000" },
+    });
+    const isFlat = d.discountAmount > 0;
+    return {
+      code: d.couponUniqueCode,
+      amount: d.discountAmount, // picks the template image (flat coupons only)
+      value: isFlat ? `₹${d.discountAmount} OFF` : `${d.discountPercentage}% OFF`,
+      min: `Min. order ₹${d.minSpendAmount}`,
+      name: d.couponName,
+      assignmentId: d.couponAssignmentId,
+      customerName: d.customerName,
+      isNewCustomer: d.isNewCustomer,
+      qr,
+    };
+  },
 };
 
-const dummyApi = {
-  // Step 2: pretend to check that the number is eligible.
-  async verifyNumber(num) {
-    await sleep(1700);
-    if (/^(\d)\1{9}$/.test(num)) {
-      const e = new Error("That number looks invalid. Check it and try again.");
-      e.code = "INVALID";
-      throw e;
-    }
-    return { ok: true, eligible: true };
-  },
-  // Step 4: pretend to fetch the reward. The same number always gets the same reward.
-  async claimBox(num) {
-    await sleep(900);
-    const h = hash(num);
-    const r = REWARDS[h % REWARDS.length];
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let suffix = "";
-    let x = h;
-    for (let i = 0; i < 5; i++) {
-      suffix += chars[x % chars.length];
-      x = Math.floor(x / chars.length) + (i + 1) * 7;
-    }
-    const exp = new Date();
-    exp.setDate(exp.getDate() + 7);
-    return { value: r.value, name: r.name, min: r.min, code: `${r.prefix}-${suffix}`, expires: exp };
-  },
-};
+// Five template images in public/coupons: 50.png, 100.png, 200.png, 300.png, 500.png
+const couponImageUrl = (amount) => `/coupons/${amount}.png`;
+const isSorry = (ex) => ex.code === "ALREADY_CLAIMED" || ex.code === "SOLD_OUT";
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                             */
 /* ------------------------------------------------------------------ */
 const GUIDE = {
   idle: "Enter your mobile number to begin",
-  verifying: "Checking your number…",
-  ready: "Number verified. Tap the box to open it",
+  sending: "Sending your OTP on WhatsApp…",
+  otp: "Enter the OTP we sent on WhatsApp",
+  checking: "Checking your OTP…",
+  ready: "OTP verified. Tap the box to open it",
   opening: "Opening… hold tight",
-  revealed: "Reward unlocked. Copy your code",
+  revealed: "Reward unlocked. Save your coupon",
+  sorry: "Sorry, no box for this number",
 };
-const STEP_INDEX = { idle: 0, verifying: 1, ready: 2, opening: 3, revealed: 3 };
-const STEP_LABELS = ["Number", "Check", "Open", "Reward"];
+const STEP_INDEX = { idle: 0, sending: 1, otp: 1, checking: 1, ready: 2, opening: 3, revealed: 3, sorry: 0 };
+const STEP_LABELS = ["Number", "OTP", "Open", "Reward"];
 const REWARD_LINK = "https://gripstyle.in/user";
-const CONFETTI_COLORS =["#ffc857", "#ff5c4d", "#f5eee3", "#5be3b0", "#8f86ff"];
+const CONFETTI_COLORS = ["#ffc857", "#ff5c4d", "#f5eee3", "#5be3b0", "#8f86ff"];
 
 const digitsOnly = (v) => v.replace(/\D/g, "").slice(0, 10);
 const formatPhone = (d) => (d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5)}` : d);
@@ -73,28 +76,40 @@ const formatPhone = (d) => (d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5)}` : d)
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-export default function MysteryBox({ api = dummyApi }) {
+export default function MysteryBox({ api = mysteryApi }) {
   const [phase, setPhase] = useState("idle");
   const [phone, setPhone] = useState(""); // raw digits
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [shake, setShake] = useState(0);
   const [reward, setReward] = useState(null);
+  const [sorryMsg, setSorryMsg] = useState("");
+  const [imgFailed, setImgFailed] = useState(false);
+  const [otpLength, setOtpLength] = useState(4); // from SendOtp
+  const [maskedPhone, setMaskedPhone] = useState(""); // from SendOtp
+  const [cooldown, setCooldown] = useState(0); // seconds until Resend is allowed
   const [guide, setGuide] = useState(GUIDE.idle);
   const [guideSwap, setGuideSwap] = useState(false);
-  const [copyLabel, setCopyLabel] = useState("Copy");
 
   const boxRef = useRef(null);
-  const phoneRef = useRef(null);
-  const codeRef = useRef(null);
   const canvasRef = useRef(null);
   const partsRef = useRef([]);
   const rafRef = useRef(0);
   const timers = useRef([]);
+  const rewardRef = useRef(null);
 
   const reduce =
     typeof window !== "undefined" &&
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // The stylesheet only knows idle / verifying / ready / opening / revealed.
+  const cssPhase =
+    phase === "sending" || phase === "checking"
+      ? "verifying"
+      : phase === "otp" || phase === "sorry"
+      ? "idle"
+      : phase;
 
   const later = useCallback((fn, ms) => {
     const id = setTimeout(fn, ms);
@@ -119,6 +134,13 @@ export default function MysteryBox({ api = dummyApi }) {
     }, reduce ? 0 : 180);
     return () => clearTimeout(id);
   }, [phase, reduce]);
+
+  /* Resend countdown */
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   /* ---------- Confetti ---------- */
   const sizeCanvas = useCallback(() => {
@@ -199,63 +221,72 @@ export default function MysteryBox({ api = dummyApi }) {
     setError("");
   };
 
-  const onSubmit = async (e) => {
+  // Sends (or re-sends) the OTP. Used by the phone form and the Resend button.
+  const startOtp = async (fromOtpScreen) => {
+    setError("");
+    setPhase("sending");
+    try {
+      const d = await api.sendOtp(phone);
+      setOtpLength(d.otpLength || 4);
+      setMaskedPhone(d.maskedPhoneNumber || "");
+      setCooldown(d.resendAfterSeconds || 0);
+      setOtp("");
+      setPhase("otp");
+    } catch (ex) {
+      if (isSorry(ex)) {
+        setSorryMsg(ex.message);
+        setPhase("sorry");
+        return;
+      }
+      setPhase(fromOtpScreen ? "otp" : "idle");
+      fail(ex.message || "Something went wrong. Try again.");
+    }
+  };
+
+  const onSubmit = (e) => {
     e.preventDefault();
     if (phone.length !== 10) return fail("Enter a 10 digit mobile number.");
     if (!/^[6-9]/.test(phone)) return fail("Mobile numbers start with 6, 7, 8 or 9.");
-    setPhase("verifying");
+    startOtp(false);
+  };
+
+  const onVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (otp.length !== otpLength) return fail(`Enter the ${otpLength} digit OTP.`);
+    setPhase("checking");
     try {
-      await api.verifyNumber(phone);
+      rewardRef.current = await api.verifyOtp(phone, otp);
       setPhase("ready");
       later(() => {
         if (boxRef.current) boxRef.current.focus({ preventScroll: true });
       }, 60);
     } catch (ex) {
-      setPhase("idle");
+      if (isSorry(ex)) {
+        setSorryMsg(ex.message);
+        setPhase("sorry");
+        return;
+      }
+      setPhase("otp");
       fail(ex.message || "Something went wrong. Try again.");
     }
   };
 
+  const onChangeNumber = () => {
+    setOtp("");
+    setError("");
+    setPhase("idle");
+  };
+
+  // The coupon was already assigned when the OTP was verified. Opening the box only reveals it.
   const onOpen = async () => {
     if (phase !== "ready") return;
     setPhase("opening");
-    const started = Date.now();
-    try {
-      const r = await api.claimBox(phone);
-      const wait = Math.max(0, 1700 - (Date.now() - started));
-      later(() => burst(false), Math.min(wait, 1100));
-      await sleep(wait);
-      setReward(r);
-      setPhase("revealed");
-      later(() => burst(true), reduce ? 0 : 500);
-    } catch {
-      setPhase("ready");
-      fail("Could not open the box. Tap it again.");
-    }
-  };
-
-  const onCopy = () => {
-    const text = reward ? reward.code : "";
-    const flash = (label) => {
-      setCopyLabel(label);
-      later(() => setCopyLabel("Copy"), 1600);
-    };
-    const fallback = () => {
-      const el = codeRef.current;
-      if (el) {
-        const rng = document.createRange();
-        rng.selectNodeContents(el);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(rng);
-      }
-      flash("Selected");
-    };
-    try {
-      navigator.clipboard.writeText(text).then(() => flash("Copied"), fallback);
-    } catch {
-      fallback();
-    }
+    later(() => burst(false), 1100);
+    await sleep(1700);
+    setImgFailed(false);
+    setReward(rewardRef.current);
+    setPhase("revealed");
+    later(() => burst(true), reduce ? 0 : 500);
   };
 
   /* ---------- Derived ---------- */
@@ -264,7 +295,7 @@ export default function MysteryBox({ api = dummyApi }) {
   const masked = phone.length === 10 ? `${phone.slice(0, 2)}•••••${phone.slice(7)}` : "";
 
   return (
-    <div className="mb-root" data-phase={phase}>
+    <div className="mb-root" data-phase={cssPhase}>
       <style>{CSS}</style>
 
       <div className="wrap">
@@ -297,30 +328,25 @@ export default function MysteryBox({ api = dummyApi }) {
 
             {phase === "revealed" && reward && (
               <div className="ticket-slot">
-                <div className="ticket">
-                  <div className="t-top">
-                    <span className="t-kicker">Mystery box reward</span>
-                    <span className="t-value">{reward.value}</span>
-                    <span className="t-name">{reward.name}</span>
+                {imgFailed || !reward.amount ? (
+                  <div className="ticket-img ticket-fallback">
+                    <b>{reward.value}</b>
+                    <span>{reward.min}</span>
+                    <code>{reward.code}</code>
+                    <small>This coupon is also saved in your account.</small>
                   </div>
-                  <div className="t-bottom">
-                    <div className="codebox">
-                      <div className="code" ref={codeRef}>
-                        {reward.code}
-                      </div>
-                      <button className="copy" type="button" onClick={onCopy}>
-                        {copyLabel}
-                      </button>
-                    </div>
-                    <div className="meta">
-                      <span>{reward.min}</span>
-                      <span>
-                        Valid till{" "}
-                        {reward.expires.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </span>
-                    </div>
+                ) : (
+                  <div className="ticket-img">
+                    <img
+                      className="tk-bg"
+                      src={couponImageUrl(reward.amount)}
+                      alt={`${reward.value} coupon`}
+                      onError={() => setImgFailed(true)}
+                    />
+                    <span className="tk-code">{reward.code}</span>
+                    <img className="tk-qr" src={reward.qr} alt="QR code of your coupon" />
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -355,38 +381,87 @@ export default function MysteryBox({ api = dummyApi }) {
           <span className={`guide-text ${guideSwap ? "swap" : ""}`}>{guide}</span>
         </div>
 
-        <form className="panel" onSubmit={onSubmit} noValidate>
-          <label htmlFor="mb-phone">Mobile number</label>
-          <div key={shake} className={`field ${error ? "invalid" : ""}`}>
-            <span className="cc">+91</span>
-            <input
-              ref={phoneRef}
-              id="mb-phone"
-              name="phone"
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel-national"
-              placeholder="98765 43210"
-              maxLength={11}
-              value={formatPhone(phone)}
-              onChange={onPhoneChange}
-              autoFocus
-            />
+        {phase === "sorry" ? (
+          <div className="panel sorry" role="alert">
+            <strong>Sorry!</strong>
+            <p>{sorryMsg}</p>
+            <a className="btn" href={REWARD_LINK}>
+              Login To Your Account
+            </a>
           </div>
-          <p className="err" role="alert">
-            {error}
-          </p>
-          <button className="btn" type="submit" disabled={phone.length !== 10}>
-            Unlock my box
-          </button>
-          <p className="fine">We only use your number to match one box to you.</p>
-        </form>
+        ) : phase === "otp" ? (
+          <form className="panel" onSubmit={onVerifyOtp} noValidate>
+            <label htmlFor="mb-otp">OTP sent on WhatsApp to +91 {maskedPhone || masked}</label>
+            <div key={shake} className={`field ${error ? "invalid" : ""}`}>
+              <input
+                id="mb-otp"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder={"1234567890".slice(0, otpLength)}
+                maxLength={otpLength}
+                value={otp}
+                autoFocus
+                onChange={(e) => {
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, otpLength));
+                  setError("");
+                }}
+              />
+            </div>
+            <p className="err" role="alert">
+              {error}
+            </p>
+            <button className="btn" type="submit" disabled={otp.length !== otpLength}>
+              Verify OTP
+            </button>
+            <button
+              className="btn ghost"
+              type="button"
+              disabled={cooldown > 0}
+              onClick={() => startOtp(true)}
+            >
+              {cooldown > 0 ? `Resend OTP in ${cooldown}s` : "Resend OTP"}
+            </button>
+            <button className="btn ghost" type="button" onClick={onChangeNumber}>
+              Change number
+            </button>
+          </form>
+        ) : (
+          <form className="panel" onSubmit={onSubmit} noValidate>
+            <label htmlFor="mb-phone">Mobile number</label>
+            <div key={shake} className={`field ${error ? "invalid" : ""}`}>
+              <span className="cc">+91</span>
+              <input
+                id="mb-phone"
+                name="phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                placeholder="98765 43210"
+                maxLength={11}
+                value={formatPhone(phone)}
+                onChange={onPhoneChange}
+                autoFocus
+              />
+            </div>
+            <p className="err" role="alert">
+              {error}
+            </p>
+            <button className="btn" type="submit" disabled={phone.length !== 10}>
+              Send OTP
+            </button>
+            <p className="fine">We only use your number to match one box to you.</p>
+          </form>
+        )}
 
         {phase === "revealed" && reward && (
           <section className="result" aria-live="polite">
             <div className="winline">
-              You got a reward
-              <small>Matched to +91 {masked}</small>
+              You got {reward.value}
+              <small>Matched to +91 {maskedPhone || masked}</small>
+              {reward.isNewCustomer && (
+                <small>We have created your account. Log in with this number to see your coupon.</small>
+              )}
             </div>
 
             <a className="btn stagger s2" href={REWARD_LINK}>
@@ -405,7 +480,7 @@ export default function MysteryBox({ api = dummyApi }) {
 /*  Styles (scoped under .mb-root)                                     */
 /* ------------------------------------------------------------------ */
 const CSS = String.raw`
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500;700&display=swap");
 
 .mb-root {
   --ink: #14112b;
@@ -420,7 +495,6 @@ const CSS = String.raw`
   --danger: #ff8d85;
   --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
   --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   color-scheme: dark;
 
   min-height: 100vh;
@@ -440,14 +514,6 @@ const CSS = String.raw`
 
 .mb-root header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .mb-root .logo { display: block; height: 56px; width: auto; max-width: 70%; object-fit: contain; margin-bottom: 10px; }
-.mb-root .eyebrow {
-  font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold);
-  font-weight: 700; display: inline-flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;
-}
-.mb-root .eyebrow .test {
-  letter-spacing: 0.06em; font-size: 11px; color: var(--muted); border: 1px solid var(--line);
-  padding: 2px 8px; border-radius: 999px; text-transform: none; font-weight: 500;
-}
 .mb-root h1 {
   margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 8vw, 40px);
   line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance;
@@ -488,8 +554,6 @@ const CSS = String.raw`
 }
 .mb-root[data-phase="revealed"] .stage { height: var(--rev-h); }
 
-/* The box sits in a holder. On reveal the holder slides to the bottom of the
-   taller stage and shrinks a little, so the coupon has room above it. */
 .mb-root .box-holder {
   position: absolute; left: 50%; top: var(--box-top); width: 170px; height: 190px; margin-left: -85px; z-index: 6;
   transform-origin: 50% 100%;
@@ -497,9 +561,35 @@ const CSS = String.raw`
 }
 .mb-root[data-phase="revealed"] .box-holder { top: calc(var(--rev-h) - 204px); transform: scale(0.72); }
 
-/* The slot is as tall as the final stage, so the coupon keeps its place while the stage grows. */
 .mb-root .ticket-slot { position: absolute; left: 0; right: 0; top: 0; height: var(--rev-h); z-index: 4; pointer-events: none; }
-.mb-root .ticket-slot .ticket { position: absolute; left: 0; right: 0; bottom: 93px; margin: 0 auto; width: min(340px, 100%); pointer-events: auto; }
+.mb-root .ticket-slot .ticket-img {
+  position: absolute; left: 0; right: 0; bottom: 93px; margin: 0 auto;
+  width: min(340px, 100%); border-radius: 14px; overflow: hidden; pointer-events: auto;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4); animation: mb-fly 1.6s both;
+}
+.mb-root .ticket-fallback {
+  background: linear-gradient(150deg, #ffe08a, var(--gold) 55%, #f4ab2f); color: var(--ink);
+  padding: 22px; display: flex; flex-direction: column; gap: 6px; text-align: center; overflow: hidden;
+}
+.mb-root .ticket-fallback b { font-family: var(--font-display); font-size: 40px; line-height: 1; }
+.mb-root .ticket-fallback code { font-size: 22px; letter-spacing: 0.1em; font-weight: 700; user-select: all; }
+.mb-root .ticket-fallback small { opacity: 0.75; }
+.mb-root .tk-bg { display: block; width: 100%; height: auto; }
+/* Overlay positions, as a percentage of the template image. Nudge these to match your template. */
+.mb-root .tk-code {
+  position: absolute; left: 10%; top: 67%; transform: translateY(-50%);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-weight: 700;
+  font-size: clamp(11px, 3.8vw, 15px); letter-spacing: 0.08em; color: #14112b; user-select: all;
+}
+.mb-root .tk-qr { position: absolute; left: 72.8%; top: 58%; width: 19%; height: auto; }
+/* Rises out of the box, then drops into place. */
+@keyframes mb-fly {
+  0% { opacity: 0; transform: translateY(90px) scale(0.16) rotate(-8deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  14% { opacity: 1; }
+  42% { opacity: 1; transform: translateY(-25px) scale(0.6) rotate(5deg); animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); }
+  78% { transform: translateY(10px) scale(1.04) rotate(-1.5deg); animation-timing-function: ease-out; }
+  100% { opacity: 1; transform: none; }
+}
 
 .mb-root .rays {
   position: absolute; width: 520px; height: 520px; left: 50%; top: calc(var(--box-top) + 95px); margin: -260px 0 0 -260px; border-radius: 50%;
@@ -584,7 +674,6 @@ const CSS = String.raw`
 @keyframes mb-tease { 0%, 55%, 100% { transform: translateY(0); } 25% { transform: translateY(-8px) rotate(-3deg); } }
 .mb-root[data-phase="opening"] .box { animation: mb-pre 0.6s ease-in; }
 @keyframes mb-pre { 0% { transform: scale(1); } 60% { transform: scale(1.12, 0.92); } 100% { transform: scale(1); } }
-/* The lid pops up, then drops to rest beside the box. It never disappears. */
 .mb-root[data-phase="opening"] .lid { animation: mb-lidoff 1.1s 0.5s cubic-bezier(0.3, 0.7, 0.3, 1) forwards; }
 .mb-root[data-phase="revealed"] .lid { animation: none; transform: translate(-98px, 128px) rotate(-10deg) scale(0.55); transition: none; }
 @keyframes mb-lidoff {
@@ -629,6 +718,9 @@ const CSS = String.raw`
 .mb-root .panel { background: var(--ink-2); border: 1px solid var(--line); border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
 .mb-root[data-phase="ready"] .panel, .mb-root[data-phase="verifying"] .panel,
 .mb-root[data-phase="opening"] .panel, .mb-root[data-phase="revealed"] .panel { display: none; }
+.mb-root .panel.sorry { text-align: center; }
+.mb-root .panel.sorry strong { font-family: var(--font-display); font-size: 22px; }
+.mb-root .panel.sorry p { margin: 0; color: var(--muted); }
 .mb-root label { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; color: var(--muted); }
 .mb-root .field { display: flex; align-items: stretch; border: 2px solid var(--line); border-radius: 14px; background: var(--ink); overflow: hidden; transition: border-color 0.25s, box-shadow 0.25s; }
 .mb-root .field:focus-within { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255, 200, 87, 0.18); }
@@ -652,44 +744,8 @@ const CSS = String.raw`
 .mb-root .btn.ghost { background: transparent; color: var(--cream); box-shadow: none; border: 1px solid var(--line); padding: 12px 18px; font-size: 14px; }
 .mb-root .fine { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
-/* Coupon */
+/* Result */
 .mb-root .result { position: relative; display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
-.mb-root .ticket {
-  --notch: 62%;
-  position: relative; z-index: 5; border-radius: 20px; color: var(--ink); overflow: hidden;
-  background: linear-gradient(150deg, #ffe08a, var(--gold) 55%, #f4ab2f);
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4);
-  -webkit-mask: radial-gradient(circle 14px at 0 var(--notch), transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 14px at 100% var(--notch), transparent 98%, #000) right / 51% 100% no-repeat;
-  mask: radial-gradient(circle 14px at 0 var(--notch), transparent 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 14px at 100% var(--notch), transparent 98%, #000) right / 51% 100% no-repeat;
-  animation: mb-fly 1.6s both;
-}
-/* Starts small at the box mouth (--fx/--fy are set in JS), rises out, then drops into place. */
-@keyframes mb-fly {
-  0% { opacity: 0; transform: translateY(-90px) scale(0.16) rotate(-8deg); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
-  14% { opacity: 1; }
-  42% { opacity: 1; transform: translateY(-135px) scale(0.6) rotate(5deg); animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); }
-  78% { transform: translateY(10px) scale(1.04) rotate(-1.5deg); animation-timing-function: ease-out; }
-  100% { opacity: 1; transform: none; }
-}
-.mb-root .ticket::after {
-  content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
-  transform: translateX(-120%); animation: mb-shine 1.4s 1.3s ease-out forwards; pointer-events: none;
-}
-@keyframes mb-shine { to { transform: translateX(120%); } }
-.mb-root .t-top { padding: 24px 22px 20px; display: flex; flex-direction: column; gap: 4px; border-bottom: 2px dashed rgba(20, 17, 43, 0.35); }
-.mb-root .t-kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.75; }
-.mb-root .t-value { font-family: var(--font-display); font-weight: 800; font-size: clamp(44px, 14vw, 64px); line-height: 0.95; letter-spacing: -0.03em; text-wrap: balance; }
-.mb-root .t-name { font-size: 15px; font-weight: 500; }
-.mb-root .t-bottom { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
-.mb-root .codebox { display: flex; gap: 10px; align-items: stretch; }
-.mb-root .code {
-  flex: 1; min-width: 0; font-family: var(--font-mono); font-weight: 600; font-size: 20px; letter-spacing: 0.1em; background: rgba(20, 17, 43, 0.1);
-  border: 2px dashed rgba(20, 17, 43, 0.55); border-radius: 12px; padding: 11px 12px; text-align: center; overflow-wrap: anywhere; user-select: all;
-}
-.mb-root .copy { all: unset; cursor: pointer; padding: 0 16px; border-radius: 12px; background: var(--ink); color: var(--gold); font-weight: 700; font-size: 14px; display: grid; place-items: center; }
-.mb-root .copy:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
-.mb-root .meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; font-weight: 500; }
-.mb-root .meta span { opacity: 0.85; }
 .mb-root .stagger { animation: mb-rise 0.6s both; }
 .mb-root .s2 { animation-delay: 1.5s; }
 @keyframes mb-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
